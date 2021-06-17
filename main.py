@@ -19,6 +19,9 @@ step = 4
 # samples 列のヒストグラムの平均を使用する
 samples = 5
 
+# 検知位置からサンプル量に合わせて左側にずらすピクセル数
+diff_x = step * samples
+
 # TODO: ユーザーからの入力を受け取ってパスを設定する
 if len(sys.argv) != 3:
     print('データと出力先のパスを設定してください')
@@ -114,11 +117,13 @@ for file_id in range(0, length):
                     if crop_flag:
                         crop_start_x = x
                     else:
+                        # あまりに縦長の画像を弾くためにアスペクト比が 1:10 を超える画像は無視する
+                        # 髪の毛などを人として誤検知してしまった場合に必要な判定
                         if height / (x - crop_start_x) > 10:
                             continue
 
                         person_count += 1
-                        person = image[0 : height, crop_start_x : x]
+                        person = image[0 : height, crop_start_x - diff_x: x - diff_x]
                         cv2.imwrite('{}{}_{}.{}'.format(output_path, file_name, person_count, file_type), person)
                         print('detect person (id = {})'.format(person_count))
 
