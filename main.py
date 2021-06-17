@@ -62,78 +62,32 @@ for file_id in range(0, length):
 
             margin_width = 100
             margin = np.ones((height, margin_width, 3), np.uint8) * 255
-            image = cv2.hconcat([margin, base_image])
+            image = cv2.hconcat([margin, base_image,margin])
 
         # しきい値を計算
-        t = height * 1.23
+        threshold = height * 1.23
 
-        # ヒストグラムのレベルを保存する
-        levels = []
+        #リスト内包表記で一気に画像を切り刻む
+        trimmed_images  = [image[0 : height, x : x + step] for x in range(0, width + margin_width, step)]
 
-        print('step =', step, ', t=', t, ', width =', width, ', height =', height)
+        #リスト内包表記で一気にヒストグラムを計算
+        hists = np.array([[cv2.calcHist([trimmed_image], [0], None, [256], [0, 256]) for i in range(3)] for trimmed_image in trimmed_images ])
 
-        for x in range(0, width + margin_width, step):
-            # 縦の列を区切る
-            trimmed_image = image[0 : height, x : x + step]
+        color_levels = (height * 3 - hists.max(axis = 2)).sum(axis = 1)
+        color_levels = np.concatenate([np.ones((samples - (color_levels.shape[0] % samples),1)) * color_levels[0][0], color_levels])
+        color_levels = color_levels.reshape(-1)
+        color_levels = np.convolve(color_levels, np.ones(samples) / samples)[samples:] #移動平均を畳み込みにより計算
+        higher_than_threshold = np.where(color_levels > threshold)[0].tolist()
 
-            if debug:
-                start_point = (x + round(step / 2), 0)
-                end_point = (x + round(step / 2), height)
+        start_x = higher_than_threshold[0] * step
+        for i in range(len(higher_than_threshold)):
+            if (higher_than_threshold[i - 1] + 1 != higher_than_threshold[i]  and i != 0) or (i == len(higher_than_threshold) - 1):
+                person_count += 1
+                end_x = (higher_than_threshold[i - 1] + 1) * step
+                person = image[0 : height, start_x : end_x]
+                cv2.imwrite('{}{}_{}.{}'.format(output_path, file_name, person_count, file_type), person)
+                start_x = higher_than_threshold[i] * step
 
-            plt.cla()
-            plt.clf()
-            level_sum = 0
-
-            # 区切った区間に対してヒストグラムを生成
-            for i, col in enumerate(('b', 'g', 'r')):
-                hist = cv2.calcHist([trimmed_image], [i], None, [256], [0, 256])
-                color_level = height * 3 - np.amax(hist)
-                level_sum += color_level
-
-                plt.plot(hist, color = col)
-                plt.xlim([0, 256])
-
-                if debug:
-                    print(col, color_level)
-
-            if debug:
-                print('x', x, 'sum', level_sum)
-
-            levels.append(level_sum)
-
-            if len(levels) > samples:
-                levels.pop(0)
-                level_sum = sum(levels) / samples
-
-                # TODO: しきい値だけで判断しているが、白の割合なども考慮して判定精度を上げたい
-                if (not crop_flag and t < level_sum) or (crop_flag and t > level_sum):
-                    crop_flag = not crop_flag
-
-                    if crop_flag:
-                        crop_start_x = x
-                    else:
-                        if height / (x - crop_start_x) > 10:
-                            continue
-
-                        person_count += 1
-                        person = image[0 : height, crop_start_x : x]
-                        cv2.imwrite('{}{}_{}.{}'.format(output_path, file_name, person_count, file_type), person)
-                        print('detect person (id = {})'.format(person_count))
-
-            if debug:
-                debug_image = image.copy()
-                cv2.rectangle(debug_image, start_point, end_point, (0, 180, 0), 1)
-
-                debug_width = round(width / 2)
-                debug_height = round(height / 2)
-
-                debug_image = cv2.resize(debug_image, None, fx = 1 / 2, fy = 1 / 2)
-                cv2.imshow('image', debug_image)
-                cv2.moveWindow('image', 800, 150)
-
-                plt.title('x = {} (step = {})'.format(x, step))
-                plt.savefig('./images/plots/{}_{}.jpg'.format(x, step))
-                plt.show()
+        print('step =', step, ', t=', threshold, ', width =', width, ', height =', height)
 
 print('analysis finished!')
-
