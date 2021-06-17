@@ -5,10 +5,10 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 # 注意: debug を有効にする場合は出力先のディレクトリを作成してください
-# (デフォルトでは ./images/ と ./images/test/ が必要)
+# (デフォルトでは ./images/ と ./images/plots/ が必要)
 debug = False
 
-# この辺の定数は必ずこれらの値で初期化
+# これらの定数の値は固定
 crop_flag = False
 crop_start_x = 0
 person_count = 0
@@ -24,7 +24,7 @@ diff_x = step * samples
 
 # TODO: ユーザーからの入力を受け取ってパスを設定する
 if len(sys.argv) != 3:
-    print('データと出力先のパスを設定してください')
+    print('Set the path of the input/output image source')
     exit()
 
 target_path = sys.argv[1]
@@ -38,9 +38,9 @@ if target_path[len(target_path) - 1] != '/':
 if output_path[len(output_path) - 1] != '/':
     output_path = '{}/'.format(output_path)
 
+length = len(target_files)
 print('analysis start...')
 
-length = len(target_files)
 for file_id in range(0, length):
     split = target_files[file_id].split('.')
 
@@ -63,6 +63,8 @@ for file_id in range(0, length):
             base_image = cv2.imread('{}{}.{}'.format(target_path, file_name, file_type))
             height, width = base_image.shape[:2]
 
+            # 左側に横幅100pxの真っ白な領域を追加している
+            # TODO: png にも同じ処理を適用する（そのままだとうまく動かなかった）
             margin_width = 100
             margin = np.ones((height, margin_width, 3), np.uint8) * 255
             image = cv2.hconcat([margin, base_image])
@@ -85,8 +87,6 @@ for file_id in range(0, length):
             if debug:
                 start_point = (x + round(step / 2), 0)
                 end_point = (x + round(step / 2), height)
-
-            if debug:
                 plt.cla()
                 plt.clf()
 
@@ -105,7 +105,6 @@ for file_id in range(0, length):
                 plt.plot(hist_b, color = 'b')
                 plt.xlim([0, 256])
 
-
             if len(levels) > samples:
                 levels.pop(0)
                 level_sum = sum(levels) / samples
@@ -123,7 +122,7 @@ for file_id in range(0, length):
                             continue
 
                         person_count += 1
-                        person = image[0 : height, crop_start_x - diff_x: x - diff_x]
+                        person = image[0 : height, crop_start_x - diff_x: x]
                         cv2.imwrite('{}{}_{}.{}'.format(output_path, file_name, person_count, file_type), person)
                         print('detect person (id = {})'.format(person_count))
 
@@ -141,6 +140,8 @@ for file_id in range(0, length):
                 plt.title('x = {} (step = {})'.format(x, step))
                 plt.savefig('./images/plots/{}_{}.jpg'.format(x, step))
                 plt.show()
+    else:
+        print('Unsupported file types *.{}'.format(file_type))
 
 print('analysis finished!')
 
