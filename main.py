@@ -1,3 +1,5 @@
+import os
+import sys
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
@@ -17,24 +19,47 @@ step = 4
 # samples 列のヒストグラムの平均を使用する
 samples = 5
 
-# しきい値（調節する必要はある）
-t = 950
+# TODO: ユーザーからの入力を受け取ってパスを設定する
+if False:
+    if len(sys.argv) != 3:
+        print('データと出力先のパスを設定してください')
+        exit()
+
+    print(sys.argv[1])
+
+    print(os.listdir('./images/'))
+    exit()
 
 # TODO: 現状は単体のファイルだけを見るが将来的には
 #       ディレクトリ直下にある画像全部に対して処理を行えるようにする
 path = './images/'
 file_name = 'your_file_name_here'
-base_image = cv2.imread('{}test/{}.jpg'.format(path, file_name))
-height, width = base_image.shape[:2]
+file_type = 'png'
 
-margin_width = 100
-margin = np.ones((height, margin_width, 3), np.uint8) * 255
-image = cv2.hconcat([margin, base_image])
+if file_type == 'png':
+    base_image = cv2.imread('{}test/{}.{}'.format(path, file_name, file_type), -1)
+    height, width = base_image.shape[:2]
+    # 背景が透過されている場合は白くする
+    index = np.where(base_image[:, :, 3] == 0)
+    base_image[index] = [255, 255, 255, 255]
+
+    margin_width = 0
+    image = base_image.copy()
+else:
+    base_image = cv2.imread('{}test/{}.{}'.format(path, file_name, file_type))
+    height, width = base_image.shape[:2]
+
+    margin_width = 100
+    margin = np.ones((height, margin_width, 3), np.uint8) * 255
+    image = cv2.hconcat([margin, base_image])
+
+# しきい値を計算
+t = height * 1.23
 
 # ヒストグラムのレベルを保存する
 levels = []
 
-print('step =', step, ', width =', width, ', height =', height)
+print('step =', step, ', t=', t, ', width =', width, ', height =', height)
 print('analysis start...')
 
 for x in range(0, width + margin_width, step):
@@ -82,7 +107,7 @@ for x in range(0, width + margin_width, step):
 
                 person_count += 1
                 person = image[0 : height, crop_start_x : x]
-                cv2.imwrite('{}{}_{}.jpg'.format(path, file_name, person_count), person)
+                cv2.imwrite('{}{}_{}.{}'.format(path, file_name, person_count, file_type), person)
                 print('detect person (id = {})'.format(person_count))
 
     if debug:
