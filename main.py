@@ -23,13 +23,12 @@ t = 950
 # TODO: 現状は単体のファイルだけを見るが将来的には
 #       ディレクトリ直下にある画像全部に対して処理を行えるようにする
 path = './images/'
-file_name = 'your_file_name'
+file_name = 'your_file_name_here'
 base_image = cv2.imread('{}test/{}.jpg'.format(path, file_name))
 height, width = base_image.shape[:2]
 
 margin_width = 100
 margin = np.ones((height, margin_width, 3), np.uint8) * 255
-# print(type(image), type(margin))
 image = cv2.hconcat([margin, base_image])
 
 # ヒストグラムのレベルを保存する
@@ -78,7 +77,9 @@ for x in range(0, width + margin_width, step):
             if crop_flag:
                 crop_start_x = x
             else:
-                # TODO: 比率が 1:30 を超えていたらノイズとして処理する
+                if height / (x - crop_start_x) > 10:
+                    continue
+
                 person_count += 1
                 person = image[0 : height, crop_start_x : x]
                 cv2.imwrite('{}{}_{}.jpg'.format(path, file_name, person_count), person)
