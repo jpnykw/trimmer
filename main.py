@@ -80,8 +80,10 @@ for file_id in range(0, length):
                 start_point = (x + round(step / 2), 0)
                 end_point = (x + round(step / 2), height)
 
-            plt.cla()
-            plt.clf()
+            if debug:
+                plt.cla()
+                plt.clf()
+
             level_sum = 0
 
             # 区切った区間に対してヒストグラムを生成
@@ -90,10 +92,9 @@ for file_id in range(0, length):
                 color_level = height * 3 - np.amax(hist)
                 level_sum += color_level
 
-                plt.plot(hist, color = col)
-                plt.xlim([0, 256])
-
                 if debug:
+                    plt.plot(hist, color = col)
+                    plt.xlim([0, 256])
                     print(col, color_level)
 
             if debug:
