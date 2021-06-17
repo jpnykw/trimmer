@@ -12,17 +12,22 @@ crop_start_x = 0
 person_count = 0
 
 # 分割数（数値を下げるほど細分化するため処理が遅くなる）
-step = 4
+step = 3
+
+# samples 列のヒストグラムの平均を使用する
+samples = 5
 
 # しきい値（調節する必要はある）
-t = 990
+t = 900
 
 # TODO: 現状は単体のファイルだけを見るが将来的には
 #       ディレクトリ直下にある画像全部に対して処理を行えるようにする
 path = './images/'
-file_name = '7_8hd5o4zzec'
+file_name = 'your_file_name'
 image = cv2.imread('{}test/{}.jpg'.format(path, file_name))
 height, width = image.shape[:2]
+
+levels = []
 
 print('step =', step, ', width =', width, ', height =', height)
 print('analysis start...')
@@ -30,8 +35,10 @@ print('analysis start...')
 for x in range(0, width, step):
     # 縦の列を区切る
     trimmed_image = image[0 : height, x : x + step]
-    start_point = (x + round(step / 2), 0)
-    end_point = (x + round(step / 2), height)
+
+    if debug:
+        start_point = (x + round(step / 2), 0)
+        end_point = (x + round(step / 2), height)
 
     plt.cla()
     plt.clf()
@@ -40,7 +47,7 @@ for x in range(0, width, step):
     # 区切った区間に対してヒストグラムを生成
     for i, col in enumerate(('b', 'g', 'r')):
         hist = cv2.calcHist([trimmed_image], [i], None, [256], [0, 256])
-        color_level = 3072.0 - np.amax(hist)
+        color_level = height * 3  - np.amax(hist)
         level_sum += color_level
 
         plt.plot(hist, color = col)
@@ -52,16 +59,24 @@ for x in range(0, width, step):
     if debug:
         print('x', x, 'sum', level_sum)
 
-    # TODO: しきい値だけで判断しているが、白の割合なども考慮して判定精度を上げたい
-    if (not crop_flag and t < level_sum) or (crop_flag and t > level_sum):
-        crop_flag = not crop_flag
+    levels.append(level_sum)
 
-        if crop_flag:
-            crop_start_x = x
-        else:
-            person_count += 1
-            person = image[0 : height, crop_start_x : x]
-            cv2.imwrite('{}{}_{}.jpg'.format(path, file_name, person_count), person)
+    if len(levels) > samples:
+        levels.pop(0)
+        level_sum = sum(levels) / samples
+
+        # TODO: しきい値だけで判断しているが、白の割合なども考慮して判定精度を上げたい
+        if (not crop_flag and t < level_sum) or (crop_flag and t > level_sum):
+            crop_flag = not crop_flag
+
+            if crop_flag:
+                crop_start_x = x
+            else:
+                # TODO: 比率が 1:30 を超えていたらノイズとして処理する
+                person_count += 1
+                person = image[0 : height, crop_start_x : x]
+                cv2.imwrite('{}{}_{}.jpg'.format(path, file_name, person_count), person)
+                print('detect person (id = {})'.format(person_count))
 
     if debug:
         debug_image = image.copy()
