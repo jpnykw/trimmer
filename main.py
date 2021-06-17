@@ -8,11 +8,6 @@ from matplotlib import pyplot as plt
 # (デフォルトでは ./images/ と ./images/plots/ が必要)
 debug = False
 
-# これらの定数の値は固定
-crop_flag = False
-crop_start_x = 0
-person_count = 0
-
 # 分割数（数値を下げるほど細分化するため処理が遅くなる）
 step = 4
 
@@ -39,7 +34,7 @@ if output_path[len(output_path) - 1] != '/':
     output_path = '{}/'.format(output_path)
 
 length = len(target_files)
-print('analysis start...')
+print('Analysis start...')
 
 for file_id in range(0, length):
     split = target_files[file_id].split('.')
@@ -47,7 +42,7 @@ for file_id in range(0, length):
     if split[1] in ['png', 'jpg']:
         file_name = split[0]
         file_type = split[1]
-        print('checking {}'.format(file_name))
+        print('Checking {}...'.format(file_name))
 
         if file_type == 'png':
             base_image = cv2.imread('{}{}.{}'.format(target_path, file_name, file_type), -1)
@@ -77,6 +72,11 @@ for file_id in range(0, length):
 
         # 取りうるレベルの最大値
         ceil = height * 3
+
+        # これらの初期値は固定
+        crop_flag = False
+        person_count = 0
+        crop_start_x = 0
 
         print('step =', step, ', t=', t, ', width =', width, ', height =', height)
 
@@ -123,12 +123,13 @@ for file_id in range(0, length):
 
                         person_count += 1
                         person = image[0 : height, crop_start_x - diff_x: x]
-                        cv2.imwrite('{}{}_{}.{}'.format(output_path, file_name, person_count, file_type), person)
-                        print('detect person (id = {})'.format(person_count))
+                        new_file_path = '{}{}_{}.{}'.format(output_path, file_name, person_count, file_type)
+                        print(' - New person detected; save in {}'.format(new_file_path))
+                        cv2.imwrite(new_file_path, person)
 
             if debug:
                 debug_image = image.copy()
-                cv2.rectangle(debug_image, start_point, end_point, (0, 180, 0), 1)
+                # cv2.rectangle(debug_image, start_point, end_point, (0, 180, 0), 1)
 
                 debug_width = round(width / 2)
                 debug_height = round(height / 2)
@@ -138,10 +139,11 @@ for file_id in range(0, length):
                 cv2.moveWindow('image', 800, 150)
 
                 plt.title('x = {} (step = {})'.format(x, step))
-                plt.savefig('./images/plots/{}_{}.jpg'.format(x, step))
+                # plt.savefig('./images/plots/{}_{}.jpg'.format(x, step))
                 plt.show()
+                exit()
     else:
         print('Unsupported file types *.{}'.format(file_type))
 
-print('analysis finished!')
+print('Analysis finished!')
 
