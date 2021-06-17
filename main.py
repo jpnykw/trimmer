@@ -12,27 +12,33 @@ crop_start_x = 0
 person_count = 0
 
 # 分割数（数値を下げるほど細分化するため処理が遅くなる）
-step = 3
+step = 4
 
 # samples 列のヒストグラムの平均を使用する
 samples = 5
 
 # しきい値（調節する必要はある）
-t = 900
+t = 950
 
 # TODO: 現状は単体のファイルだけを見るが将来的には
 #       ディレクトリ直下にある画像全部に対して処理を行えるようにする
 path = './images/'
 file_name = 'your_file_name'
-image = cv2.imread('{}test/{}.jpg'.format(path, file_name))
-height, width = image.shape[:2]
+base_image = cv2.imread('{}test/{}.jpg'.format(path, file_name))
+height, width = base_image.shape[:2]
 
+margin_width = 100
+margin = np.ones((height, margin_width, 3), np.uint8) * 255
+# print(type(image), type(margin))
+image = cv2.hconcat([margin, base_image])
+
+# ヒストグラムのレベルを保存する
 levels = []
 
 print('step =', step, ', width =', width, ', height =', height)
 print('analysis start...')
 
-for x in range(0, width, step):
+for x in range(0, width + margin_width, step):
     # 縦の列を区切る
     trimmed_image = image[0 : height, x : x + step]
 
@@ -47,7 +53,7 @@ for x in range(0, width, step):
     # 区切った区間に対してヒストグラムを生成
     for i, col in enumerate(('b', 'g', 'r')):
         hist = cv2.calcHist([trimmed_image], [i], None, [256], [0, 256])
-        color_level = height * 3  - np.amax(hist)
+        color_level = height * 3 - np.amax(hist)
         level_sum += color_level
 
         plt.plot(hist, color = col)
