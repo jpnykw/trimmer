@@ -70,6 +70,9 @@ for file_id in range(0, length):
         # ヒストグラムのレベルを保存する
         levels = []
 
+        # 取りうるレベルの最大値
+        ceil = height * 3
+
         print('step =', step, ', t=', t, ', width =', width, ', height =', height)
 
         for x in range(0, width + margin_width, step):
@@ -84,23 +87,21 @@ for file_id in range(0, length):
                 plt.cla()
                 plt.clf()
 
-            level_sum = 0
-
             # 区切った区間に対してヒストグラムを生成
-            for i, col in enumerate(('b', 'g', 'r')):
-                hist = cv2.calcHist([trimmed_image], [i], None, [256], [0, 256])
-                color_level = height * 3 - np.amax(hist)
-                level_sum += color_level
-
-                if debug:
-                    plt.plot(hist, color = col)
-                    plt.xlim([0, 256])
-                    print(col, color_level)
+            b, g, r = trimmed_image[:, :, 0], trimmed_image[:, :, 1], trimmed_image[:, :, 2]
+            hist_r = cv2.calcHist([r], [0], None, [256], [0,256])
+            hist_g = cv2.calcHist([g], [0], None, [256], [0,256])
+            hist_b = cv2.calcHist([b], [0], None, [256], [0,256])
+            level_sum = (ceil - np.amax(hist_r)) + (ceil - np.amax(hist_g)) + (ceil - np.amax(hist_b))
+            levels.append(level_sum)
 
             if debug:
                 print('x', x, 'sum', level_sum)
+                plt.plot(hist_r, color = 'r')
+                plt.plot(hist_g, color = 'g')
+                plt.plot(hist_b, color = 'b')
+                plt.xlim([0, 256])
 
-            levels.append(level_sum)
 
             if len(levels) > samples:
                 levels.pop(0)
