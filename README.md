@@ -11,3 +11,6 @@ Demonstration using illustrations from いらすとや
 
 https://user-images.githubusercontent.com/31243896/122455103-000a4480-cfe7-11eb-84ce-a59dc7549b2f.mov
 
+## Built With
+The model below is used in this project for face detection, thanks :)
+https://github.com/nagadomi/lbpcascade_animeface
