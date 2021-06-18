@@ -17,6 +17,9 @@ samples = 5
 # 検知位置からサンプル量に合わせて左側にずらすピクセル数
 diff_x = step * samples
 
+# 特徴量を読み込んで分類器を作成
+classifier = cv2.CascadeClassifier('./lbpcascade_animeface.xml')
+
 # TODO: ユーザーからの入力を受け取ってパスを設定する
 if len(sys.argv) != 3:
     print('Set the path of the input/output image source')
@@ -38,10 +41,11 @@ print('Analysis start...')
 
 for file_id in range(0, length):
     split = target_files[file_id].split('.')
+    if len(split) < 2: continue
+    file_name = split[0]
+    file_type = split[1]
 
     if split[1] in ['png', 'jpg']:
-        file_name = split[0]
-        file_type = split[1]
         print('Checking {}...'.format(file_name))
 
         if file_type == 'png':
@@ -118,14 +122,48 @@ for file_id in range(0, length):
                     else:
                         # あまりに縦長の画像を弾くためにアスペクト比が 1:10 を超える画像は無視する
                         # 髪の毛などを人として誤検知してしまった場合に必要な判定
-                        if height / (x - crop_start_x) > 10:
-                            continue
+                        if height / (x - crop_start_x) > 10: continue
 
                         person_count += 1
-                        person = image[0 : height, crop_start_x - diff_x: x]
+                        person = image[0 : height, crop_start_x - diff_x : x]
                         new_file_path = '{}{}_{}.{}'.format(output_path, file_name, person_count, file_type)
-                        print(' - New person detected; save in {}'.format(new_file_path))
-                        cv2.imwrite(new_file_path, person)
+
+                        # 分類器に画像を食わせて顔の位置を取得する
+                        gray_image = cv2.cvtColor(person, cv2.COLOR_BGR2GRAY)
+                        faces = classifier.detectMultiScale(gray_image)
+                        faces_count = len(faces)
+
+                        # TODO: 二人以上の顔を検知した場合は人数に合わせて画像を分割する
+                        if faces_count > 1:
+                            buffer = (-1, -1)
+                            split = False
+
+                            for face_x, face_y, face_width, face_height in faces:
+                                if buffer[0] == -1:
+                                    buffer = (face_x, face_x + face_width)
+                                else:
+                                    # 検出した顔の範囲がかぶっている場合は誤検知なので別人とはカウントしない
+                                    in_lface_x = (face_x < buffer[0]) and (buffer[0] < face_x + face_width)
+                                    in_rface_x = (buffer[0] < face_x) and (face_x < buffer[1])
+                                    if not (in_lface_x or in_rface_x): split = True
+                                    buffer = (face_x, face_x + face_width)
+
+                                if debug: cv2.rectangle(person, (face_x, face_y), (face_x + face_width, face_y + face_height), (0, 0, 255), 2)
+
+                            if split:
+                                # 別人である可能性がある場合は一人あたりの領域を人数で割って分割
+                                w_area = round((x - (crop_start_x - diff_x)) / faces_count)
+                                x_area = crop_start_x - diff_x
+                                for _ in range(0, faces_count):
+                                    person_count += 1
+                                    person = image[0 : height, x_area : x_area + w_area]
+                                    new_file_path = '{}{}_{}.{}'.format(output_path, file_name, person_count, file_type)
+                                    print(' - New person detected; save in {}'.format(new_file_path))
+                                    cv2.imwrite(new_file_path, person)
+                                    x_area += w_area
+                        else:
+                            print(' - New person detected; save in {}'.format(new_file_path))
+                            cv2.imwrite(new_file_path, person)
 
             if debug:
                 debug_image = image.copy()
