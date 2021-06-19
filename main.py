@@ -47,6 +47,8 @@ for file_id in range(0, length):
 
     if split[1] in ['png', 'jpg']:
         print('Checking {}...'.format(file_name))
+        # 既にその画像を解析していたらスキップする
+        if os.path.exists('{}{}_{}.{}'.format(output_path, file_name, 1, file_type)): continue
 
         if file_type == 'png':
             base_image = cv2.imread('{}{}.{}'.format(target_path, file_name, file_type), -1)
@@ -99,7 +101,7 @@ for file_id in range(0, length):
             hist_r = cv2.calcHist([r], [0], None, [256], [0,256])
             hist_g = cv2.calcHist([g], [0], None, [256], [0,256])
             hist_b = cv2.calcHist([b], [0], None, [256], [0,256])
-            level_sum = (ceil - np.amax(hist_r)) + (ceil - np.amax(hist_g)) + (ceil - np.amax(hist_b))
+            level_sum = sum([ceil - hist.max() for hist in [hist_r, hist_g, hist_b]])
             levels.append(level_sum)
 
             if debug:
