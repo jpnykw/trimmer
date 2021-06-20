@@ -64,21 +64,31 @@ for file_id in range(0, length):
             index = np.where(base_image[:, :, 3] == 0)
             base_image[index] = [255, 255, 255, 255]
 
-            margin_width = 0
-            image = base_image.copy()
-
-            # cv2.imshow('image', image)
-            # cv2.waitKey(0)
+            # 透過箇所を白塗りした png を一時的に jpg 変換して保存
+            cv2.imwrite('tmp.jpg', base_image, [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+            base_image = cv2.imread('tmp.jpg')
+            # 一時的に作成しただけなので削除する
+            os.remove('tmp.jpg')
 
         if file_type == 'jpg':
             base_image = cv2.imread('{}{}.{}'.format(target_path, file_name, file_type))
             height, width = base_image.shape[:2]
 
-            # 左側に横幅100pxの真っ白な領域を追加している
-            # TODO: png にも同じ処理を適用する（そのままだとうまく動かなかった）
-            margin_width = 100
-            margin = np.ones((height, margin_width, 3), np.uint8) * 255
-            image = cv2.hconcat([margin, base_image])
+        margin_width = 50
+        margin_height = 50
+
+        h_margin = np.ones((height, margin_width, 3), np.uint8) * 255 # 左右の余白
+        image = cv2.hconcat([h_margin, base_image]) # 左に余白を追加
+        image = cv2.hconcat([image, h_margin]) # 右に余白を追加
+
+        v_margin = np.ones((margin_height, width + margin_width * 2, 3), np.uint8) * 255 # 拡張したサイズを計算しないと行列サイズが合わない
+        image = cv2.vconcat([v_margin, image]) # 上に余白を追加
+        image = cv2.vconcat([image, v_margin]) # 下に余白を追加
+
+        # print(width, height)
+        width = width + margin_width * 2
+        height = height + margin_height * 2
+        # print(width, height)
 
         # しきい値を計算
         ht = width * 0.05
@@ -95,7 +105,7 @@ for file_id in range(0, length):
         person_count = 0
         crop_start_y = 0
 
-        print('step =', step, ', (h)t =', ht, ', width =', width, ', height =', height)
+        print('\033[32m', 'step =', step, ', (h)t =', ht, ', width =', width, ', height =', height, '\033[0m')
 
         # 複数列になっている場合があるので配列にする
         images = []
@@ -116,10 +126,11 @@ for file_id in range(0, length):
                     if crop_flag:
                         crop_start_y = y - step * samples
                     else:
-                        # TODO: crop
                         if width / (y - crop_start_y) > 10: continue
-                        line_image = image[crop_start_y: y, 0 : width]
+                        line_image = image[crop_start_y - diff_x : y, 0 : width]
                         images.append(line_image)
+
+        print('\033[32m', 'vertical images', len(images), '\033[0m')
 
         # 列を分離したあとで縦方向に処理していく
         for image in images:
@@ -127,12 +138,14 @@ for file_id in range(0, length):
             crop_start_x = 0
 
             # サイズとしきい値を再計算
-            height, _ = image.shape[:2]
-            vt = height * 1.23
+            height, width = image.shape[:2]
+            width += margin_width * 2 # 左右に余白がある分を加算
+            height += margin_height * 2 # 上下に余白がある分を加算
+            vt = height * 1.23 # キャラクターの境界を示すしきい値
             
-            print('step =', step, ', (v)t =', vt, ', width =', width, ', height =', height)
+            print('\033[32m', 'step =', step, ', (v)t =', vt, ', width =', width, ', height =', height, '\033[0m')
 
-            for x in range(0, width + margin_width, step):
+            for x in range(0, width, step):
                 # 垂直方向
                 trimmed_image = image[0 : height, x : x + step]
                 # 区切った区間に対してヒストグラムを生成
